@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CAMPOST",
+  "version": "1.0.0",
+  "identifier": "com.mowobank.poc",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "CAMPOST · Core Banking",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 1024,
+        "minHeight": 680,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "CAMPOST",
+    "copyright": "© 2026 CAMPOST",
+    "category": "Finance",
+    "shortDescription": "Système core banking de CAMPOST",
+    "longDescription": "CAMPOST Core Banking — gestion des comptes, de la clientèle (KYC), des dépôts, des retraits, des transactions et des relevés pour les agences de CAMPOST.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["French"],
+        "displayLanguageSelector": false
+      }
+    }
+  },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:mowobank_v5.db"]
+    }
+  }
+}
