@@ -4,7 +4,7 @@ import { Modal } from "./ui/Modal";
 import { Select } from "./ui/Select";
 import type { Account, TransactionType } from "@/lib/types";
 import { formatXOF, parseAmountToCents } from "@/lib/format";
-import { ACCOUNT_TYPE_LABELS } from "@/lib/types";
+import { ACCOUNT_TYPE_LABELS, availableBalance } from "@/lib/types";
 import { createTransaction } from "@/services/transactions";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -45,8 +45,12 @@ export function OperationModal({ open, onClose, onDone, accounts, lockedAccountI
     setError(null);
     if (!selected) return setError("Veuillez sélectionner un compte.");
     if (cents === null) return setError("Montant invalide.");
-    if (type === "withdrawal" && cents > selected.balance) {
-      return setError("Solde insuffisant pour ce retrait.");
+    if (type === "withdrawal" && cents > availableBalance(selected)) {
+      return setError(
+        selected.overdraftLimit > 0
+          ? "Montant supérieur au disponible (solde + découvert autorisé)."
+          : "Solde insuffisant pour ce retrait.",
+      );
     }
     setBusy(true);
     try {
@@ -116,7 +120,15 @@ export function OperationModal({ open, onClose, onDone, accounts, lockedAccountI
           />
           {selected && (
             <span className="mw-field__hint">
-              Solde actuel : <strong className="mw-mono">{formatXOF(selected.balance)}</strong>
+              Solde : <strong className="mw-mono">{formatXOF(selected.balance)}</strong>
+              {selected.overdraftLimit > 0 && (
+                <>
+                  {" · découvert "}
+                  <span className="mw-mono">{formatXOF(selected.overdraftLimit)}</span>
+                  {" · disponible "}
+                  <strong className="mw-mono">{formatXOF(availableBalance(selected))}</strong>
+                </>
+              )}
             </span>
           )}
         </div>

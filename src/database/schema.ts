@@ -35,9 +35,10 @@ CREATE TABLE IF NOT EXISTS accounts (
   client_id    TEXT NOT NULL DEFAULT '',
   holder_name  TEXT NOT NULL,
   holder_phone TEXT NOT NULL DEFAULT '',
-  type         TEXT NOT NULL CHECK (type IN ('epargne','courant','tontine')),
-  balance      INTEGER NOT NULL DEFAULT 0,
-  status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','frozen','closed')),
+  type           TEXT NOT NULL CHECK (type IN ('epargne','courant','tontine')),
+  balance        INTEGER NOT NULL DEFAULT 0,
+  overdraft_limit INTEGER NOT NULL DEFAULT 0,
+  status         TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','frozen','closed')),
   opened_by    TEXT NOT NULL,
   created_at   TEXT NOT NULL
 );

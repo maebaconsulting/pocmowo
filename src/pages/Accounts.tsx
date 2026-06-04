@@ -1,13 +1,13 @@
 // Page Comptes : liste filtrable, ouverture de compte, fiche détaillée avec opérations.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listAccounts, createAccount, setAccountStatus } from "@/services/accounts";
+import { listAccounts, createAccount, setAccountStatus, setOverdraftLimit } from "@/services/accounts";
 import { listTransactionsByAccount } from "@/services/transactions";
 import { createAccountSchema } from "@/services/accounts";
 import type { Account, AccountStatus, AccountType, TransactionType } from "@/lib/types";
-import { ACCOUNT_TYPE_LABELS } from "@/lib/types";
+import { ACCOUNT_TYPE_LABELS, availableBalance } from "@/lib/types";
 import { formatXOF, formatDate, formatDateTime, parseAmountToCents } from "@/lib/format";
-import { AccountStatusChip, AccountTypeChip, Avatar, EmptyState, TxTypeChip } from "@/components/ui/atoms";
+import { AccountStatusChip, AccountTypeChip, Avatar, Chip, EmptyState, TxTypeChip } from "@/components/ui/atoms";
 import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { Drawer } from "@/components/ui/Drawer";
@@ -140,7 +140,17 @@ export function Accounts() {
                       <AccountStatusChip status={a.status} />
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <span className="mw-cell-amount">{formatXOF(a.balance)}</span>
+                      <span
+                        className="mw-cell-amount"
+                        style={{ color: a.balance < 0 ? "var(--mw-danger-fg)" : undefined }}
+                      >
+                        {formatXOF(a.balance)}
+                      </span>
+                      {a.overdraftLimit > 0 && (
+                        <div className="mw-caption" style={{ marginTop: 2 }}>
+                          découvert {formatXOF(a.overdraftLimit)}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <span className="mw-caption">{formatDate(a.createdAt)}</span>
@@ -163,6 +173,11 @@ export function Accounts() {
         onStatus={async (status) => {
           if (!detail) return;
           await setAccountStatus(detail.id, status);
+          refresh();
+        }}
+        onSetOverdraft={async (limitCents) => {
+          if (!detail) return;
+          await setOverdraftLimit(detail.id, limitCents);
           refresh();
         }}
       />
@@ -281,19 +296,108 @@ function CreateAccountModal({ open, onClose, onDone }: { open: boolean; onClose:
 }
 
 // ---------- Panneau de détail du compte ----------
+// ---------- Modale de gestion du découvert autorisé ----------
+function OverdraftModal({
+  open,
+  account,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  account: Account;
+  onClose: () => void;
+  onSave: (limitCents: number) => void | Promise<void>;
+}) {
+  const toast = useToast();
+  const [value, setValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setValue(account.overdraftLimit ? String(account.overdraftLimit / 100) : "");
+      setError(null);
+    }
+  }, [open, account.overdraftLimit]);
+
+  async function submit() {
+    setError(null);
+    const raw = value.trim();
+    let cents: number | null;
+    if (raw === "" || Number(raw.replace(",", ".")) === 0) cents = 0;
+    else cents = parseAmountToCents(raw);
+    if (cents === null) return setError("Montant invalide.");
+    setBusy(true);
+    try {
+      await onSave(cents);
+      toast.success(cents > 0 ? "Découvert autorisé" : "Découvert désactivé", account.holderName);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      title="Découvert autorisé"
+      subtitle={`Compte ${account.number} · ${account.holderName}`}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="mw-btn mw-btn--secondary" onClick={onClose} disabled={busy}>
+            Annuler
+          </button>
+          <button className="mw-btn mw-btn--primary" onClick={submit} disabled={busy}>
+            {busy ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </>
+      }
+    >
+      <div className="mw-form-grid">
+        <p className="mw-sm mw-muted">
+          Le découvert autorisé permet d'accepter des retraits au-delà du solde, jusqu'à ce plafond. Le
+          solde du compte peut alors devenir négatif. Laisser à 0 pour désactiver le découvert.
+        </p>
+        <div className="mw-field">
+          <label className="mw-field__label">Plafond de découvert (FCFA)</label>
+          <input
+            className="mw-input"
+            inputMode="numeric"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="0"
+          />
+          <span className="mw-field__hint">Solde actuel : {formatXOF(account.balance)}</span>
+        </div>
+        {error && (
+          <div className="mw-alert mw-alert--danger">
+            <span className="mw-alert__body">{error}</span>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function AccountDrawer({
   account,
   onClose,
   onOperate,
   onStatement,
   onStatus,
+  onSetOverdraft,
 }: {
   account: Account | null;
   onClose: () => void;
   onOperate: (t: TransactionType) => void;
   onStatement: () => void;
   onStatus: (s: AccountStatus) => void;
+  onSetOverdraft: (limitCents: number) => void | Promise<void>;
 }) {
+  const [overdraftOpen, setOverdraftOpen] = useState(false);
   const { data: txs = [] } = useQuery({
     queryKey: ["account-tx", account?.id],
     queryFn: () => listTransactionsByAccount(account!.id),
@@ -303,6 +407,20 @@ function AccountDrawer({
   if (!account) return null;
 
   return (
+    <>
+      {renderDrawer()}
+      <OverdraftModal
+        open={overdraftOpen}
+        account={account}
+        onClose={() => setOverdraftOpen(false)}
+        onSave={onSetOverdraft}
+      />
+    </>
+  );
+
+  function renderDrawer() {
+    if (!account) return null;
+    return (
     <Drawer
       open={!!account}
       onClose={onClose}
@@ -320,11 +438,27 @@ function AccountDrawer({
     >
       <div className="mw-stack-gap">
         <div className="mw-metric-card mw-metric-card--white" style={{ minHeight: 0 }}>
-          <span className="mw-metric-card__label">Solde disponible</span>
-          <div className="mw-metric-card__value">{formatXOF(account.balance)}</div>
+          <span className="mw-metric-card__label">Solde du compte</span>
+          <div
+            className="mw-metric-card__value"
+            style={{ color: account.balance < 0 ? "var(--mw-danger-fg)" : undefined }}
+          >
+            {formatXOF(account.balance)}
+          </div>
+          {account.overdraftLimit > 0 && (
+            <div className="mw-sm mw-muted">
+              Découvert autorisé {formatXOF(account.overdraftLimit)} · disponible{" "}
+              <strong className="mw-mono">{formatXOF(availableBalance(account))}</strong>
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <AccountTypeChip type={account.type} />
             <AccountStatusChip status={account.status} />
+            {account.balance < 0 ? (
+              <Chip tone="danger">En découvert</Chip>
+            ) : (
+              account.overdraftLimit > 0 && <Chip tone="info">Découvert autorisé</Chip>
+            )}
           </div>
         </div>
 
@@ -345,9 +479,14 @@ function AccountDrawer({
           </button>
         </div>
 
-        <button className="mw-btn mw-btn--secondary mw-btn--block" onClick={onStatement}>
-          <IconReport size={18} /> Éditer le relevé de compte
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="mw-btn mw-btn--secondary mw-btn--block" onClick={onStatement}>
+            <IconReport size={18} /> Relevé
+          </button>
+          <button className="mw-btn mw-btn--secondary mw-btn--block" onClick={() => setOverdraftOpen(true)}>
+            <IconWallet size={18} /> Découvert
+          </button>
+        </div>
 
         {account.holderPhone && (
           <div className="mw-row-between mw-sm">
@@ -420,4 +559,5 @@ function AccountDrawer({
       </div>
     </Drawer>
   );
+  }
 }

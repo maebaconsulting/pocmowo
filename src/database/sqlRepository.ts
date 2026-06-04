@@ -38,6 +38,7 @@ interface AccountRow {
   holder_phone: string;
   type: Account["type"];
   balance: number;
+  overdraft_limit: number;
   status: AccountStatus;
   opened_by: string;
   created_at: string;
@@ -86,6 +87,7 @@ const toAccount = (r: AccountRow): Account => ({
   holderPhone: r.holder_phone,
   type: r.type,
   balance: r.balance,
+  overdraftLimit: r.overdraft_limit,
   status: r.status,
   openedBy: r.opened_by,
   createdAt: r.created_at,
@@ -106,7 +108,7 @@ export class SqlRepository implements Repository {
 
   async init(): Promise<void> {
     // v2 : schéma enrichi (clients/KYC). Nouveau fichier pour repartir proprement.
-    this.db = await Database.load("sqlite:mowobank_v5.db");
+    this.db = await Database.load("sqlite:mowobank_v6.db");
     // Le DDL contient plusieurs instructions : on les exécute séquentiellement.
     for (const stmt of SCHEMA_SQL.split(";")) {
       const s = stmt.trim();
@@ -185,9 +187,9 @@ export class SqlRepository implements Repository {
 
   async createAccount(a: Account): Promise<void> {
     await this.db.execute(
-      `INSERT INTO accounts (id, number, client_id, holder_name, holder_phone, type, balance, status, opened_by, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [a.id, a.number, a.clientId, a.holderName, a.holderPhone, a.type, a.balance, a.status, a.openedBy, a.createdAt],
+      `INSERT INTO accounts (id, number, client_id, holder_name, holder_phone, type, balance, overdraft_limit, status, opened_by, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [a.id, a.number, a.clientId, a.holderName, a.holderPhone, a.type, a.balance, a.overdraftLimit, a.status, a.openedBy, a.createdAt],
     );
   }
 
@@ -197,6 +199,10 @@ export class SqlRepository implements Repository {
 
   async setAccountStatus(id: string, status: AccountStatus): Promise<void> {
     await this.db.execute("UPDATE accounts SET status = $1 WHERE id = $2", [status, id]);
+  }
+
+  async setOverdraftLimit(id: string, limit: number): Promise<void> {
+    await this.db.execute("UPDATE accounts SET overdraft_limit = $1 WHERE id = $2", [limit, id]);
   }
 
   async listTransactions(): Promise<Transaction[]> {

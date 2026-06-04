@@ -53,7 +53,7 @@
   },
   "plugins": {
     "sql": {
-      "preload": ["sqlite:mowobank_v5.db"]
+      "preload": ["sqlite:mowobank_v6.db"]
     }
   }
 }

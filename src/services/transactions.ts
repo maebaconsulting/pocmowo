@@ -38,8 +38,13 @@ export async function createTransaction(
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
     throw new Error("Le montant doit être strictement positif.");
   }
-  if (input.type === "withdrawal" && input.amountCents > account.balance) {
-    throw new Error("Solde insuffisant pour ce retrait.");
+  const available = account.balance + (account.overdraftLimit || 0);
+  if (input.type === "withdrawal" && input.amountCents > available) {
+    throw new Error(
+      account.overdraftLimit > 0
+        ? "Montant supérieur au disponible (solde + découvert autorisé)."
+        : "Solde insuffisant pour ce retrait.",
+    );
   }
 
   const balanceAfter =

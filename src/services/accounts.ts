@@ -49,6 +49,7 @@ export async function createAccount(
     holderPhone: input.holderPhone?.trim() ?? "",
     type: input.type as AccountType,
     balance: 0,
+    overdraftLimit: 0,
     status: "active",
     openedBy: operatorId,
     createdAt: new Date().toISOString(),
@@ -68,4 +69,13 @@ export async function createAccount(
 export async function setAccountStatus(id: string, status: AccountStatus): Promise<void> {
   const repo = await getRepository();
   await repo.setAccountStatus(id, status);
+}
+
+/** Définit le plafond de découvert autorisé (en centimes ; 0 = aucun découvert). */
+export async function setOverdraftLimit(id: string, limitCents: number): Promise<void> {
+  if (!Number.isInteger(limitCents) || limitCents < 0) {
+    throw new Error("Le plafond de découvert doit être positif ou nul.");
+  }
+  const repo = await getRepository();
+  await repo.setOverdraftLimit(id, limitCents);
 }

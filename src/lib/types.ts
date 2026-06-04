@@ -62,10 +62,16 @@ export interface Account {
   holderName: string;
   holderPhone: string;
   type: AccountType;
-  balance: number; // centimes
+  balance: number; // centimes (peut être négatif si découvert autorisé)
+  overdraftLimit: number; // centimes ; plafond de découvert autorisé (0 = aucun)
   status: AccountStatus;
   openedBy: string; // User.id
   createdAt: string;
+}
+
+/** Montant disponible pour un retrait : solde + découvert autorisé. */
+export function availableBalance(account: Account): number {
+  return account.balance + (account.overdraftLimit || 0);
 }
 
 export type TransactionType = "deposit" | "withdrawal";

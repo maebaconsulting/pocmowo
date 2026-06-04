@@ -9,7 +9,7 @@ interface Store {
   transactions: Transaction[];
 }
 
-const KEY = "mowobank:v5";
+const KEY = "mowobank:v6";
 
 function emptyStore(): Store {
   return { users: [], clients: [], accounts: [], transactions: [] };
@@ -111,6 +111,12 @@ export class LocalRepository implements Repository {
   async setAccountStatus(id: string, status: AccountStatus): Promise<void> {
     const a = this.store.accounts.find((x) => x.id === id);
     if (a) a.status = status;
+    this.persist();
+  }
+
+  async setOverdraftLimit(id: string, limit: number): Promise<void> {
+    const a = this.store.accounts.find((x) => x.id === id);
+    if (a) a.overdraftLimit = limit;
     this.persist();
   }
 

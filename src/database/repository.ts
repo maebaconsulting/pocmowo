@@ -24,6 +24,7 @@ export interface Repository {
   createAccount(account: Account): Promise<void>;
   setAccountBalance(id: string, balance: number): Promise<void>;
   setAccountStatus(id: string, status: AccountStatus): Promise<void>;
+  setOverdraftLimit(id: string, limit: number): Promise<void>;
 
   listTransactions(): Promise<Transaction[]>;
   listTransactionsByAccount(accountId: string): Promise<Transaction[]>;

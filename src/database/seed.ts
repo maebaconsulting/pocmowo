@@ -109,6 +109,8 @@ export async function seedIfEmpty(repo: Repository): Promise<void> {
       holderPhone: s.phone,
       type: s.type,
       balance: 0,
+      // Les comptes courants bénéficient d'un découvert autorisé de 50 000 FCFA.
+      overdraftLimit: s.type === "courant" ? 5_000_000 : 0,
       status: "active",
       openedBy: operator.id,
       createdAt: daysAgo(s.opened),
