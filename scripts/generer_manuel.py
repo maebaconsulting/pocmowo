@@ -102,7 +102,7 @@ def add_cover(doc):
     centered("CAMPOST", 34, True, BLEU, 2)
     centered("Core Banking", 20, False, GRIS, 24)
     centered("Manuel d'utilisation", 18, True, NOIR, 6)
-    centered("Version 1.0", 12, False, GRIS, 2)
+    centered("Version 1.1", 12, False, GRIS, 2)
     centered("Application desktop · Windows", 11, False, GRIS, 2)
     doc.add_page_break()
 
@@ -299,12 +299,21 @@ def build():
     image(doc, "05-comptes.png", "Liste des comptes avec recherche et filtres.")
     image(doc, "06-fiche-compte.png", "Fiche compte : solde, mouvements et actions.")
 
+    h2(doc, "Découvert autorisé")
+    body(doc, "Un compte peut bénéficier d'un découvert autorisé : un plafond qui permet d'accepter des retraits au-delà du solde disponible. Le solde du compte peut alors devenir négatif, dans la limite de ce plafond.")
+    bullets(doc, [
+        "Depuis la fiche compte, le bouton « Découvert » ouvre une fenêtre permettant de définir ou de modifier le plafond (saisir 0 pour le désactiver).",
+        "La fiche affiche le découvert autorisé et le disponible (solde plus découvert). Un solde négatif s'affiche en rouge, accompagné de la mention « En découvert ».",
+        "Lors d'un retrait, le contrôle porte sur le disponible : l'opération est acceptée tant que le montant ne dépasse pas le solde augmenté du découvert autorisé.",
+    ])
+    image(doc, "09-decouvert.png", "Compte en découvert : solde négatif et disponible recalculé.")
+
     h1(doc, 9, "Dépôts et retraits")
     body(doc, "Les opérations sont accessibles depuis le tableau de bord, la fiche compte ou la page Transactions.")
     bullets(doc, [
         "Sélectionnez le compte, choisissez le type d'opération, saisissez le montant et un libellé, puis validez.",
         "Le solde et les indicateurs se mettent à jour immédiatement.",
-        "Contrôle : un retrait supérieur au solde disponible est refusé ; aucune opération n'est possible sur un compte gelé ou clôturé.",
+        "Contrôle : un retrait est accepté dans la limite du disponible (solde augmenté du découvert autorisé éventuel) ; au-delà, il est refusé. Aucune opération n'est possible sur un compte gelé ou clôturé.",
     ])
     image(doc, "07-depot.png", "Saisie d'un dépôt avec contrôle du montant.")
 
